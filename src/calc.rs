@@ -180,35 +180,24 @@ impl Parser{
                 Token::OpenParen => {
                     let mut block_node = BlockNode::new();
                     self.pos += 1;
+                     // get the current number of parenthesis on the stack
                     self.paren_stack.push(Token::OpenParen);
                     self.parse()?;
                     // ensure a body for the parenthesis was parsed
                     if self.node_stack.len() == 0{
                         return  Err(Error::new(ErrorKind::Other, "Invalid Parenthesis"));
                     }
-                    // ensure the last parenthesis encountered was closing
-                    if self.paren_stack.len() == 0{
-                        return  Err(Error::new(ErrorKind::Other, "Invalid Parenthesis"));
-                    }
-                    match self.paren_stack.pop().unwrap() {
-                        Token::CloseParen => {
-                            block_node.body = self.node_stack.pop();
-                            self.node_stack.push(Box::new(block_node));
-                            // pop the opening parehnthesis off the stack
-                            self.paren_stack.pop().unwrap();
-                        }
-                        _ => {return  Err(Error::new(ErrorKind::Other, "Closing parenthesis does not match opening"));}
-                    }
+                    block_node.body = self.node_stack.pop();
+                    self.node_stack.push(Box::new(block_node));    
                 }
                 Token::CloseParen => {
                     // ensure that the last seen parenthesis was an opening parenthesis
                     if self.paren_stack.len() == 0{
                         return  Err(Error::new(ErrorKind::Other, "Invalid Parenthesis"));
                     }
-                    match self.paren_stack[self.paren_stack.len() - 1]{
+                    match self.paren_stack.pop().unwrap(){
                         Token::OpenParen => {
                             self.pos += 1;
-                            self.paren_stack.push(Token::CloseParen);
                             return  Ok(());
                         }
                         _ => {return  Err(Error::new(ErrorKind::Other, "Opening parenthesis does not match closing"));}
@@ -220,7 +209,12 @@ impl Parser{
                 }
             }
         }
-        Ok(())
+        if self.paren_stack.len() != 0{
+            Err(Error::new(ErrorKind::Other, "Incomplete expression (2)"))
+        }
+        else{
+            Ok(())
+        }
     }        
 }  
 
