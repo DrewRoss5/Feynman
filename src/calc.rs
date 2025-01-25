@@ -6,8 +6,8 @@ enum Token{
     Sub,
     Mul,
     Div,
-    OpenParen, 
-    CloseParen,
+    OpenBlock, 
+    CloseBlock,
     Int(i32)
 }
 impl Clone for Token{
@@ -17,8 +17,8 @@ impl Clone for Token{
             Token::Sub => {Token::Sub}
             Token::Mul => {Token::Mul}
             Token::Div => {Token::Div}
-            Token::OpenParen => {Token::OpenParen}
-            Token::CloseParen => {Token::OpenParen}
+            Token::OpenBlock => {Token::OpenBlock}
+            Token::CloseBlock => {Token::OpenBlock}
             Token::Int(val) => {Token::Int(val.clone())}
         }
     }
@@ -50,8 +50,8 @@ fn tokenize(expr: String) -> Result<Vec<Token>, Error>{
                 '-' => {tokens.push(Token::Sub)}
                 '*' => {tokens.push(Token::Mul)}
                 '/' => {tokens.push(Token::Div)}
-                '(' => {tokens.push(Token::OpenParen)}
-                ')' => {tokens.push(Token::CloseParen)}
+                '[' => {tokens.push(Token::OpenBlock)}
+                ']' => {tokens.push(Token::CloseBlock)}
                 ' ' => {}
                 _ => {
                     return Err(Error::new(ErrorKind::Other, "Unrecognized Token"));
@@ -177,26 +177,26 @@ impl Parser{
                     operator.right = Some(right_val);
                     self.node_stack.push(Box::new(operator));
                 }
-                Token::OpenParen => {
+                Token::OpenBlock => {
                     let mut block_node = BlockNode::new();
                     self.pos += 1;
                      // get the current number of parenthesis on the stack
-                    self.paren_stack.push(Token::OpenParen);
+                    self.paren_stack.push(Token::OpenBlock);
                     self.parse()?;
                     // ensure a body for the parenthesis was parsed
                     if self.node_stack.len() == 0{
-                        return  Err(Error::new(ErrorKind::Other, "Invalid Parenthesis"));
+                        return  Err(Error::new(ErrorKind::Other, "Invalid Blockthesis"));
                     }
                     block_node.body = self.node_stack.pop();
                     self.node_stack.push(Box::new(block_node));    
                 }
-                Token::CloseParen => {
+                Token::CloseBlock => {
                     // ensure that the last seen parenthesis was an opening parenthesis
                     if self.paren_stack.len() == 0{
-                        return  Err(Error::new(ErrorKind::Other, "Invalid Parenthesis"));
+                        return  Err(Error::new(ErrorKind::Other, "Invalid Blockthesis"));
                     }
                     match self.paren_stack.pop().unwrap(){
-                        Token::OpenParen => {
+                        Token::OpenBlock => {
                             self.pos += 1;
                             return  Ok(());
                         }
