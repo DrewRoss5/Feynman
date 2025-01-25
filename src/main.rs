@@ -1,7 +1,7 @@
 use std::io::{self, Write};
-use calc::Interpreter;
+use interpreter::Interpreter;
 
-mod calc;
+mod interpreter;
 
 fn main() {
     let mut calculator = Interpreter::new();
