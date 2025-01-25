@@ -1,14 +1,20 @@
 
-use std::{io::{Error, ErrorKind}, collections::HashMap};
+use std::{io::{Error, ErrorKind}, 
+         collections::HashMap,
+         rc::Rc,
+         cell::RefCell};
 
 enum Token{
     Add,
     Sub,
     Mul,
     Div,
+    Asgn, 
     OpenBlock, 
     CloseBlock,
-    Int(i32)
+    DecVar,
+    Int(i32),
+    Sym(String),
 }
 impl Clone for Token{
     fn clone(&self) -> Token{
@@ -17,9 +23,12 @@ impl Clone for Token{
             Token::Sub => {Token::Sub}
             Token::Mul => {Token::Mul}
             Token::Div => {Token::Div}
+            Token::Asgn => {Token::Asgn}
             Token::OpenBlock => {Token::OpenBlock}
             Token::CloseBlock => {Token::OpenBlock}
+            Token::DecVar => {Token::DecVar}
             Token::Int(val) => {Token::Int(val.clone())}
+            Token::Sym(name) => {Token::Sym(name.to_string())}
         }
     }
 }
@@ -50,11 +59,30 @@ fn tokenize(expr: String) -> Result<Vec<Token>, Error>{
                 '-' => {tokens.push(Token::Sub)}
                 '*' => {tokens.push(Token::Mul)}
                 '/' => {tokens.push(Token::Div)}
+                '=' => {tokens.push(Token::Asgn)}
                 '[' => {tokens.push(Token::OpenBlock)}
                 ']' => {tokens.push(Token::CloseBlock)}
                 ' ' => {}
                 _ => {
-                    return Err(Error::new(ErrorKind::Other, "Unrecognized Token"));
+                   // read the token to either the end of the line or the next space
+                   let mut token = String::new();
+                   while char != ' '{
+                        token.push(char);
+                        str_pos += 1;
+                        if str_pos == chars.len(){
+                            break;
+                        }
+                        char = chars[str_pos];
+                   }
+                   match token.as_str() {
+                       "let" => {
+                            tokens.push(Token::DecVar)
+                       }
+                       _ => {
+                            // we assume any unrecognized token is a user defined symbol
+                            tokens.push(Token::Sym(token))
+                       }
+                   }
                 }
             }
             str_pos += 1
@@ -111,16 +139,50 @@ impl Node for OperatorNode{
     }
 }
 
-// this node is used to define a "block" to be evaluated in parentheses
-struct BlockNode{
-    pub body: Option<Box<dyn Node>>
+// this node holds a smart pointer to a user defined variable
+struct VarNode{
+    name: String, 
+    ptr: Option<Rc<RefCell<i32>>>
 }
-impl BlockNode{
-    pub fn new() -> BlockNode{
-        BlockNode { body: None }
+impl VarNode{
+    pub fn new(name: String) -> VarNode{
+        VarNode{name, ptr: None}
+    }
+
+    pub fn intialize(&mut self, ptr: Rc<RefCell<i32>>){
+        self.ptr = Some(ptr)
+    }
+
+    pub fn set_val(&mut self, new_val: i32) -> Result<(), Error>{
+        if self.ptr.is_none(){
+            return Err(Error::new(ErrorKind::Other, format!("The variable {} has not been initalized", self.name) ));
+        }
+        let val = self.ptr.as_mut().unwrap();
+        val.replace(new_val);
+        Ok(())
+
     }
 }
-impl Node for BlockNode{
+impl Node for VarNode{
+    fn evaluate(&self) -> Result<i32, Error>{
+        if self.ptr.is_none(){
+            return Err(Error::new(ErrorKind::Other, format!("The variable {} has not been initalized", self.name) ));
+        }
+        let val =self.ptr.as_ref().unwrap().borrow(); 
+        Ok(val.clone())
+    }
+}
+
+// this node is used to define a "block" to be evaluated in brackets
+struct Block{
+    pub body: Option<Box<dyn Node>>
+}
+impl Block{
+    pub fn new() -> Block{
+        Block { body: None }
+    }
+}
+impl Node for Block{
     fn evaluate(&self) -> Result<i32, Error>{
         if self.body.is_none(){
             return Err(Error::new(ErrorKind::Other, "Invalid parenthesis"));
@@ -178,7 +240,7 @@ impl Parser{
                     self.node_stack.push(Box::new(operator));
                 }
                 Token::OpenBlock => {
-                    let mut block_node = BlockNode::new();
+                    let mut block_node = Block::new();
                     self.pos += 1;
                      // get the current number of parenthesis on the stack
                     self.paren_stack.push(Token::OpenBlock);
@@ -206,6 +268,15 @@ impl Parser{
                 Token::Int(val )=> {
                     self.node_stack.push(Box::new(NumNode::new(val)));
                     self.pos += 1
+                }
+                Token::Sym(_) => {
+                    return Err(Error::new(ErrorKind::Other, "Token: Sym\nNot implemented yet"));
+                }
+                Token::DecVar => {
+                    return Err(Error::new(ErrorKind::Other, "Token: DecVar\nNot implemented yet"));
+                }
+                Token::Asgn => {
+                    return Err(Error::new(ErrorKind::Other, "Token: Asgn\nNot implemented yet"));
                 }
             }
         }
