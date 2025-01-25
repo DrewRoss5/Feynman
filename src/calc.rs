@@ -133,8 +133,10 @@ impl Parser{
         Parser{tokens, token_count, node_stack: Vec::new(), pos: 0}
     }
     pub fn set_tokens(&mut self, tokens: Vec<Token>){
+        self.pos = 0;
         self.tokens = tokens;
         self.token_count = self.tokens.len();
+        self.node_stack = Vec::new(); // clear out the nodes in the event that the parser failed its previous evaluation
     }
     pub fn parse(&mut self) -> Result<(), Error>{
         while self.pos < self.token_count{
