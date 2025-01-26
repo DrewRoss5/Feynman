@@ -9,6 +9,7 @@ pub enum Token{
     OpenBlock, 
     CloseBlock,
     DecVar,
+    Break,
     Int(i32),
     Sym(String),
 }
@@ -23,6 +24,7 @@ impl Clone for Token{
             Token::OpenBlock => {Token::OpenBlock}
             Token::CloseBlock => {Token::OpenBlock}
             Token::DecVar => {Token::DecVar}
+            Token::Break => {Token::Break}
             Token::Int(val) => {Token::Int(val.clone())}
             Token::Sym(name) => {Token::Sym(name.to_string())}
         }
@@ -58,6 +60,7 @@ pub fn tokenize(expr: String) -> Result<Vec<Token>, Error>{
                 '=' => {tokens.push(Token::Asgn)}
                 '[' => {tokens.push(Token::OpenBlock)}
                 ']' => {tokens.push(Token::CloseBlock)}
+                ';' => {tokens.push(Token::Break)}
                 ' ' => {}
                 _ => {
                    // read the token to either the end of the line or the next space

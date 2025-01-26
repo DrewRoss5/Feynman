@@ -100,7 +100,7 @@ impl SymNode{
 }
 impl Node for SymNode{
     fn evaluate(&self) -> Result<i32, Error>{
-        Err(Error::new(ErrorKind::Other, format!("The value \"{}\" is undefined", &self.sym)))
+        Err(Error::new(ErrorKind::Other, format!("The value \"{}\" is undefined", self.sym)))
     }
     fn node_type(&self) -> NodeType {
         NodeType::Sym

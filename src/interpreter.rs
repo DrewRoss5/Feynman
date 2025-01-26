@@ -1,5 +1,5 @@
 
-use std::{io::{Error, ErrorKind}};
+use std::io::{Error, ErrorKind};
 
 use lexer::*;
 use nodes::*;
@@ -37,10 +37,10 @@ impl Interpreter{
         let tokens = tokenize(expr)?;
         self.parser.set_tokens(tokens);
         self.parser.parse()?;
-        if self.parser.node_stack.len() < 1{
+        if !self.parser.validate(){
             return Err(Error::new(ErrorKind::Other, "Invalid expression (3)"));
         }
-        self.ast.root = Some(self.parser.node_stack.pop().unwrap());
+        self.ast.root = Some(self.parser.get_tree().unwrap());
         self.ast.eval()
     }
 
