@@ -1,9 +1,20 @@
 use std::{io::{Error, ErrorKind}, rc::Rc, cell::RefCell};
 use crate::interpreter::lexer::*;
 
+pub enum NodeType{
+    Num,
+    Op, 
+    Sym,
+    Var,
+    Block,
+}
+
 // this is a root trait for every type of the node in the tree. Because this a calculator, we assume every type of node can eventually be resolved to a number 
 pub trait Node{
     fn evaluate(&self) -> Result<i32, Error>;
+    fn node_type(&self) -> NodeType;
+    fn text(&self) -> String;
+    fn assign(&self, val: Box<dyn Node>) -> Result<(), Error>;
 }
 
 // this is the simplest type of node, it only represents a literal number, and has no children
@@ -16,6 +27,15 @@ impl NumNode{
 impl Node for NumNode{
     fn evaluate(&self) -> Result<i32, Error>{
         Ok(self.val)
+    }
+    fn node_type(&self) -> NodeType {
+        NodeType::Num
+    }
+    fn text(&self) -> String {
+        self.val.to_string()
+    }
+    fn assign(&self, val: Box<dyn Node>) -> Result<(), Error> {
+        return Err(Error::new(ErrorKind::Other, "Cannot assign to literal expression"));
     }
 }
 
@@ -47,39 +67,81 @@ impl Node for OperatorNode{
             }
         }
     }
+    fn node_type(&self) -> NodeType {
+        NodeType::Op
+    }
+    fn text(&self) -> String {
+        if self.left.is_none() || self.right.is_none(){
+            return "INVALID_EXPR".to_string();
+        }
+        let op_char = match self.operator {
+            Token::Add => {"+".to_string()}
+            Token::Sub => {"-".to_string()}
+            Token::Mul => {"*".to_string()}
+            Token::Div => {"/".to_string()}
+            _ => {String::new()}
+        };
+        format!("{} {} {}", self.left.as_ref().unwrap().text(), op_char, self.right.as_ref().unwrap().text())
+    }
+
+    fn assign(&self, val: Box<dyn Node>) -> Result<(), Error> {
+        Err(Error::new(ErrorKind::Other, "Cannot assign to operator"))
+    }
+}
+
+// this node represents the name of a  user-defined symbol, such as a function or a variable
+pub struct SymNode{
+    pub sym: String
+}
+impl SymNode{
+    pub fn new(sym: String) -> SymNode{
+        SymNode{sym}
+    }
+}
+impl Node for SymNode{
+    fn evaluate(&self) -> Result<i32, Error>{
+        Err(Error::new(ErrorKind::Other, format!("The value \"{}\" is undefined", &self.sym)))
+    }
+    fn node_type(&self) -> NodeType {
+        NodeType::Sym
+    }
+    fn text(&self) -> String {
+        self.sym.clone()
+    }
+    fn assign(&self, val: Box<dyn Node>) -> Result<(), Error> {
+        Err(Error::new(ErrorKind::Other, format!("Cannot assign to unitialized value \"{}\"", &self.sym)))
+    }
 }
 
 // this node holds a smart pointer to a user defined variable
 pub struct VarNode{
     name: String, 
-    ptr: Option<Rc<RefCell<i32>>>
+    ptr: Rc<RefCell<Option<i32>>>
 }
 impl VarNode{
-    pub fn new(name: String) -> VarNode{
-        VarNode{name, ptr: None}
-    }
-
-    pub fn intialize(&mut self, ptr: Rc<RefCell<i32>>){
-        self.ptr = Some(ptr)
-    }
-
-    pub fn set_val(&mut self, new_val: i32) -> Result<(), Error>{
-        if self.ptr.is_none(){
-            return Err(Error::new(ErrorKind::Other, format!("The variable {} has not been initalized", self.name) ));
-        }
-        let val = self.ptr.as_mut().unwrap();
-        val.replace(new_val);
-        Ok(())
-
+    pub fn new(name: String, ptr: Rc<RefCell<Option<i32>>>) -> VarNode{
+        VarNode{name, ptr}
     }
 }
 impl Node for VarNode{
     fn evaluate(&self) -> Result<i32, Error>{
-        if self.ptr.is_none(){
+        let val = self.ptr.borrow();
+        if val.is_none(){
             return Err(Error::new(ErrorKind::Other, format!("The variable {} has not been initalized", self.name) ));
         }
-        let val =self.ptr.as_ref().unwrap().borrow(); 
-        Ok(val.clone())
+        let val = self.ptr.borrow();
+        Ok(val.unwrap())
+    }
+    fn node_type(&self) -> NodeType {
+        NodeType::Var
+    }
+    fn text(&self) -> String {
+        self.name.clone()
+    }
+    fn assign(&self, val: Box<dyn Node>) -> Result<(), Error> {
+        let new_val = val.evaluate()?;
+        self.ptr.replace(Some(new_val));
+        Ok(())
     }
 }
 
@@ -98,5 +160,19 @@ impl Node for Block{
             return Err(Error::new(ErrorKind::Other, "Invalid parenthesis"));
         }
         self.body.as_ref().unwrap().evaluate()
+    }
+    fn node_type(&self) -> NodeType {
+        NodeType::Block
+    }
+    fn text(&self) -> String {
+        let mut body_str = String::new();
+        match  &self.body {
+            Some(body_node) => {body_str = body_node.text()}
+            None => {body_str = " ".to_string()}
+        }
+        format!("[{}]", body_str)
+    }
+    fn assign(&self, val: Box<dyn Node>) -> Result<(), Error> {
+        Err(Error::new(ErrorKind::Other, "Cannot assign to block literal"))
     }
 }

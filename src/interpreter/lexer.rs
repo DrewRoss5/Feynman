@@ -62,7 +62,7 @@ pub fn tokenize(expr: String) -> Result<Vec<Token>, Error>{
                 _ => {
                    // read the token to either the end of the line or the next space
                    let mut token = String::new();
-                   while char != ' '{
+                   while !"+-*/=[] ".contains(char){
                         token.push(char);
                         str_pos += 1;
                         if str_pos == chars.len(){
