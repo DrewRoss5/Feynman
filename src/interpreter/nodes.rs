@@ -4,6 +4,7 @@ use crate::interpreter::lexer::*;
 pub enum NodeType{
     Num,
     Op, 
+    Asgn,
     Sym,
     Var,
     Block,
@@ -11,10 +12,10 @@ pub enum NodeType{
 
 // this is a root trait for every type of the node in the tree. Because this a calculator, we assume every type of node can eventually be resolved to a number 
 pub trait Node{
-    fn evaluate(&self) -> Result<i32, Error>;
+    fn evaluate(&mut self) -> Result<i32, Error>;
     fn node_type(&self) -> NodeType;
     fn text(&self) -> String;
-    fn assign(&self, val: Box<dyn Node>) -> Result<(), Error>;
+    fn assign(&self, val: &mut Box<dyn Node>) -> Result<(), Error>;
 }
 
 // this is the simplest type of node, it only represents a literal number, and has no children
@@ -25,7 +26,7 @@ impl NumNode{
     pub fn new(val: i32) -> NumNode {NumNode{val}}
 }
 impl Node for NumNode{
-    fn evaluate(&self) -> Result<i32, Error>{
+    fn evaluate(&mut self) -> Result<i32, Error>{
         Ok(self.val)
     }
     fn node_type(&self) -> NodeType {
@@ -34,7 +35,7 @@ impl Node for NumNode{
     fn text(&self) -> String {
         self.val.to_string()
     }
-    fn assign(&self, val: Box<dyn Node>) -> Result<(), Error> {
+    fn assign(&self, val: &mut Box<dyn Node>) -> Result<(), Error> {
         return Err(Error::new(ErrorKind::Other, "Cannot assign to literal expression"));
     }
 }
@@ -51,13 +52,13 @@ impl OperatorNode{
     }
 }
 impl Node for OperatorNode{
-    fn evaluate(&self) -> Result<i32, Error>{
+    fn evaluate(&mut self) -> Result<i32, Error>{
         if self.left.is_none() || self.right.is_none(){
             Err(Error::new(ErrorKind::Other, "Incomplete expression (1)"))
         }
         else{
-            let left_val = self.left.as_ref().unwrap().evaluate()?;
-            let right_val = self.right.as_ref().unwrap().evaluate()?;
+            let left_val = self.left.as_mut().unwrap().evaluate()?;
+            let right_val = self.right.as_mut().unwrap().evaluate()?;
             match self.operator {
                 Token::Add => {Ok(left_val + right_val)}
                 Token::Sub => {Ok(left_val - right_val)}
@@ -84,7 +85,45 @@ impl Node for OperatorNode{
         format!("{} {} {}", self.left.as_ref().unwrap().text(), op_char, self.right.as_ref().unwrap().text())
     }
 
-    fn assign(&self, val: Box<dyn Node>) -> Result<(), Error> {
+    fn assign(&self, val: &mut Box<dyn Node>) -> Result<(), Error> {
+        Err(Error::new(ErrorKind::Other, "Cannot assign to operator"))
+    }
+}
+
+// this node represents an assignment operation
+pub struct AsgnNode{
+    pub left: Option<Box<dyn Node>>,
+    pub right: Option<Box<dyn Node>>,
+}
+impl AsgnNode {
+    pub fn new() -> AsgnNode{
+        AsgnNode {left: None, right: None}
+    }
+}
+impl Node for AsgnNode{
+    fn evaluate(&mut self) -> Result<i32, Error> {
+        if self.left.is_none() || self.right.is_none(){
+            Err(Error::new(ErrorKind::Other, "Incomplete expression (1)"))
+        }
+        else{
+            let left_node = self.left.as_mut().unwrap();
+            let right_node = self.right.as_mut().unwrap();
+            left_node.assign(right_node)?;
+            left_node.evaluate()
+        }   
+    }
+    fn node_type(&self) -> NodeType {
+        NodeType::Asgn
+    }
+    fn text(&self) -> String {
+        if self.left.is_none() || self.right.is_none(){
+            "INVALID_EXPR".to_string()
+        }
+        else{
+            format!("{} = {}", self.left.as_ref().unwrap().text(), self.right.as_ref().unwrap().text())
+        }
+    }
+    fn assign(&self, _val: &mut Box<dyn Node>) -> Result<(), Error> {
         Err(Error::new(ErrorKind::Other, "Cannot assign to operator"))
     }
 }
@@ -99,7 +138,7 @@ impl SymNode{
     }
 }
 impl Node for SymNode{
-    fn evaluate(&self) -> Result<i32, Error>{
+    fn evaluate(&mut self) -> Result<i32, Error>{
         Err(Error::new(ErrorKind::Other, format!("The value \"{}\" is undefined", self.sym)))
     }
     fn node_type(&self) -> NodeType {
@@ -108,7 +147,7 @@ impl Node for SymNode{
     fn text(&self) -> String {
         self.sym.clone()
     }
-    fn assign(&self, val: Box<dyn Node>) -> Result<(), Error> {
+    fn assign(&self, _val: &mut Box<dyn Node>) -> Result<(), Error> {
         Err(Error::new(ErrorKind::Other, format!("Cannot assign to unitialized value \"{}\"", &self.sym)))
     }
 }
@@ -124,7 +163,7 @@ impl VarNode{
     }
 }
 impl Node for VarNode{
-    fn evaluate(&self) -> Result<i32, Error>{
+    fn evaluate(&mut self) -> Result<i32, Error>{
         let val = self.ptr.borrow();
         if val.is_none(){
             return Err(Error::new(ErrorKind::Other, format!("The variable {} has not been initalized", self.name) ));
@@ -138,7 +177,7 @@ impl Node for VarNode{
     fn text(&self) -> String {
         self.name.clone()
     }
-    fn assign(&self, val: Box<dyn Node>) -> Result<(), Error> {
+    fn assign(&self, val: &mut Box<dyn Node>) -> Result<(), Error> {
         let new_val = val.evaluate()?;
         self.ptr.replace(Some(new_val));
         Ok(())
@@ -155,11 +194,11 @@ impl Block{
     }
 }
 impl Node for Block{
-    fn evaluate(&self) -> Result<i32, Error>{
+    fn evaluate(&mut self) -> Result<i32, Error>{
         if self.body.is_none(){
             return Err(Error::new(ErrorKind::Other, "Invalid parenthesis"));
         }
-        self.body.as_ref().unwrap().evaluate()
+        self.body.as_mut().unwrap().evaluate()
     }
     fn node_type(&self) -> NodeType {
         NodeType::Block
@@ -172,7 +211,7 @@ impl Node for Block{
         }
         format!("[{}]", body_str)
     }
-    fn assign(&self, val: Box<dyn Node>) -> Result<(), Error> {
+    fn assign(&self, val: &mut Box<dyn Node>) -> Result<(), Error> {
         Err(Error::new(ErrorKind::Other, "Cannot assign to block literal"))
     }
 }

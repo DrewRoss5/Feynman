@@ -16,8 +16,8 @@ struct AbstractTree{
 }
 impl AbstractTree{
     pub fn new(root: Option<Box<dyn Node>>) -> AbstractTree {AbstractTree{root}}
-    pub fn eval(&self) -> Result<i32, Error>{
-        self.root.as_ref().unwrap().evaluate()
+    pub fn eval(&mut self) -> Result<i32, Error>{
+        self.root.as_mut().unwrap().evaluate()
     }
 }
 

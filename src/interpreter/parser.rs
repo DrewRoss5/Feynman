@@ -126,10 +126,10 @@ impl Parser{
                         return Err(Error::new(ErrorKind::Other, "Incomplete Expression (5)"));
                     }
                     // assign lhs to rhs
-                    let rhs = self.node_stack.pop().unwrap();
-                    let lhs = self.node_stack.pop().unwrap();
-                    lhs.assign(rhs)?;
-                    self.node_stack.push(lhs);
+                    let mut new_node = AsgnNode::new();
+                    new_node.right = self.node_stack.pop();
+                    new_node.left = self.node_stack.pop();
+                    self.node_stack.push(Box::new(new_node));
                 }
             }
         }
