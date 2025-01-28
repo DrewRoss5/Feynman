@@ -45,7 +45,7 @@ pub fn tokenize(expr: String) -> Result<Vec<Token>, Error>{
                 // if the character is a radix, ensure only one is encountered
                 if char == '.'{
                     if radix_encountered{
-                        return Err(Error::new(ErrorKind::Other, ""));
+                        return Err(Error::new(ErrorKind::Other, "Invalid syntax"));
                     }
                     radix_encountered = true;
                 }
