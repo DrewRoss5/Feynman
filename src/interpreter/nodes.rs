@@ -12,7 +12,7 @@ pub enum NodeType{
 
 // this is a root trait for every type of the node in the tree. Because this a calculator, we assume every type of node can eventually be resolved to a number 
 pub trait Node{
-    fn evaluate(&mut self) -> Result<i32, Error>;
+    fn evaluate(&mut self) -> Result<f64, Error>;
     fn node_type(&self) -> NodeType;
     fn text(&self) -> String;
     fn assign(&self, val: &mut Box<dyn Node>) -> Result<(), Error>;
@@ -20,13 +20,13 @@ pub trait Node{
 
 // this is the simplest type of node, it only represents a literal number, and has no children
 pub struct NumNode{
-    val: i32
+    val: f64
 }
 impl NumNode{
-    pub fn new(val: i32) -> NumNode {NumNode{val}}
+    pub fn new(val: f64) -> NumNode {NumNode{val}}
 }
 impl Node for NumNode{
-    fn evaluate(&mut self) -> Result<i32, Error>{
+    fn evaluate(&mut self) -> Result<f64, Error>{
         Ok(self.val)
     }
     fn node_type(&self) -> NodeType {
@@ -52,7 +52,7 @@ impl OperatorNode{
     }
 }
 impl Node for OperatorNode{
-    fn evaluate(&mut self) -> Result<i32, Error>{
+    fn evaluate(&mut self) -> Result<f64, Error>{
         if self.left.is_none() || self.right.is_none(){
             Err(Error::new(ErrorKind::Other, "Incomplete expression (1)"))
         }
@@ -101,7 +101,7 @@ impl AsgnNode {
     }
 }
 impl Node for AsgnNode{
-    fn evaluate(&mut self) -> Result<i32, Error> {
+    fn evaluate(&mut self) -> Result<f64, Error> {
         if self.left.is_none() || self.right.is_none(){
             Err(Error::new(ErrorKind::Other, "Incomplete expression (1)"))
         }
@@ -138,7 +138,7 @@ impl SymNode{
     }
 }
 impl Node for SymNode{
-    fn evaluate(&mut self) -> Result<i32, Error>{
+    fn evaluate(&mut self) -> Result<f64, Error>{
         Err(Error::new(ErrorKind::Other, format!("The value \"{}\" is undefined", self.sym)))
     }
     fn node_type(&self) -> NodeType {
@@ -155,15 +155,15 @@ impl Node for SymNode{
 // this node holds a smart pointer to a user defined variable
 pub struct VarNode{
     name: String, 
-    ptr: Rc<RefCell<Option<i32>>>
+    ptr: Rc<RefCell<Option<f64>>>
 }
 impl VarNode{
-    pub fn new(name: String, ptr: Rc<RefCell<Option<i32>>>) -> VarNode{
+    pub fn new(name: String, ptr: Rc<RefCell<Option<f64>>>) -> VarNode{
         VarNode{name, ptr}
     }
 }
 impl Node for VarNode{
-    fn evaluate(&mut self) -> Result<i32, Error>{
+    fn evaluate(&mut self) -> Result<f64, Error>{
         let val = self.ptr.borrow();
         if val.is_none(){
             return Err(Error::new(ErrorKind::Other, format!("The variable {} has not been initalized", self.name) ));
@@ -194,7 +194,7 @@ impl Block{
     }
 }
 impl Node for Block{
-    fn evaluate(&mut self) -> Result<i32, Error>{
+    fn evaluate(&mut self) -> Result<f64, Error>{
         if self.body.is_none(){
             return Err(Error::new(ErrorKind::Other, "Invalid parenthesis"));
         }

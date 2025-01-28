@@ -16,7 +16,7 @@ struct AbstractTree{
 }
 impl AbstractTree{
     pub fn new(root: Option<Box<dyn Node>>) -> AbstractTree {AbstractTree{root}}
-    pub fn eval(&mut self) -> Result<i32, Error>{
+    pub fn eval(&mut self) -> Result<f64, Error>{
         self.root.as_mut().unwrap().evaluate()
     }
 }
@@ -33,7 +33,7 @@ impl Interpreter{
         Interpreter{ast, parser}
     }
 
-    pub fn evaluate(&mut self, expr: String) -> Result<i32, Error>{
+    pub fn evaluate(&mut self, expr: String) -> Result<f64, Error>{
         let tokens = tokenize(expr)?;
         self.parser.set_tokens(tokens);
         self.parser.parse()?;

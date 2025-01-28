@@ -7,7 +7,7 @@ pub struct Parser{
     pos: usize,
     paren_stack: Vec<Token>,
     node_stack: Vec<Box<dyn Node>>,
-    pub vars: HashMap<String, Rc<RefCell<Option<i32>>>>
+    pub vars: HashMap<String, Rc<RefCell<Option<f64>>>>
 }
 impl Parser{
     pub fn new(tokens: Vec<Token>) -> Parser{
@@ -23,7 +23,7 @@ impl Parser{
         self.paren_stack.clear();
         // delete any unitialized variables 
         let symbols: Vec<&String> = self.vars.keys().collect();
-        let mut new_map: HashMap<String, Rc<RefCell<Option<i32>>>> = HashMap::new();
+        let mut new_map: HashMap<String, Rc<RefCell<Option<f64>>>> = HashMap::new();
         for i in symbols{
           if self.vars[i].borrow().is_some(){
             new_map.insert(i.clone(), self.vars[i].clone());

@@ -1,4 +1,4 @@
-use std::io::Error;
+use std::io::{Error, ErrorKind};
 
 pub enum Token{
     Add,
@@ -10,7 +10,7 @@ pub enum Token{
     CloseBlock,
     DecVar,
     Break,
-    Int(i32),
+    Int(f64),
     Sym(String),
 }
 impl Clone for Token{
@@ -38,9 +38,18 @@ pub fn tokenize(expr: String) -> Result<Vec<Token>, Error>{
     
     while str_pos < chars.len(){
         let mut char = chars[str_pos];
+        let mut radix_encountered = false;
         if '0' <= char && char <= '9'{
             let mut num_str = String::new();
-            while '0' <= char && char <= '9'{
+            while ('0' <= char && char <= '9') || char == '.'{
+                // if the character is a radix, ensure only one is encountered
+                if char == '.'{
+                    if radix_encountered{
+                        return Err(Error::new(ErrorKind::Other, ""));
+                    }
+                    radix_encountered = true;
+                }
+                // append the digit to the number
                 num_str.push(char);
                 str_pos += 1;
                 if str_pos == chars.len(){
@@ -48,7 +57,7 @@ pub fn tokenize(expr: String) -> Result<Vec<Token>, Error>{
                 }
                 char = chars[str_pos];
             }
-            let num: i32 = num_str.parse().unwrap();
+            let num: f64 = num_str.parse().unwrap();
             tokens.push(Token::Int(num));
         }
         else{
